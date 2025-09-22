@@ -1,181 +1,100 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
-import {
-  DownloadIcon,
-  MaximizeIcon,
-  PanelRightCloseIcon,
-  PanelRightIcon,
-  PlayIcon,
-  SkipBackIcon,
-} from 'lucide-react';
+import { useEffect } from 'react';
 
-import { cn } from '@/shared/lib/utils';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/shared/ui/resizable';
-import { ShaderCanvas } from '@/widgets/canvas';
-import { Sidebar } from '@/widgets/sidebar';
+async function runOnGPU() {
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) throw new Error('Нет подходящего GPU адаптера');
 
-import { Menu, MenuButton, Separator } from '../../../widgets/menu';
+  const device = await adapter.requestDevice();
 
-const Layout = ({
-  variant,
-  shader,
-  sidebar,
-}: {
-  variant: 'flex' | 'overlay';
-  shader: ReactNode;
-  sidebar: ReactNode;
-}) => {
-  switch (variant) {
-    case 'flex':
-      return (
-        <div className={'w-[100vw] h-[100vh]'}>
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={60}>
-              <div className="w-full h-full flex items-center justify-center">
-                {shader}
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={40}>
-              <div className="w-full h-full">{sidebar}</div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      );
-    case 'overlay':
-      return (
-        <div className={'relative'}>
-          <div className={'w-[100vw] h-[100vh]'}>{shader}</div>
-          <div
-            className={cn(
-              'fixed top-1/2 right-[5vh] -translate-y-1/2',
-              'w-[35vw] h-[90vh] overflow-hidden',
-              'backdrop-blur-2xl bg-[#0005] rounded-lg border border-[#fff3]',
-            )}
-          >
-            <div className={'h-full overflow-hidden'}>{sidebar}</div>
-          </div>
-        </div>
-      );
-  }
-};
+  const arrayA = new Float32Array([1, 2, 3, 4, 5]);
+  const arrayB = new Float32Array([10, 20, 30, 40, 50]);
+  const output = new Float32Array(arrayA.length);
+
+  // Буферы на GPU
+  const bufferA = device.createBuffer({
+    size: arrayA.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  const bufferB = device.createBuffer({
+    size: arrayB.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  const bufferOut = device.createBuffer({
+    size: output.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  });
+
+  // Загружаем данные
+  device.queue.writeBuffer(bufferA, 0, arrayA);
+  device.queue.writeBuffer(bufferB, 0, arrayB);
+
+  // WGSL шейдер
+  const shader = `
+    @group(0) @binding(0) var<storage, read> a : array<f32>;
+    @group(0) @binding(1) var<storage, read> b : array<f32>;
+    @group(0) @binding(2) var<storage, read_write> out : array<f32>;
+
+    @compute @workgroup_size(1) fn main(
+      @builtin(global_invocation_id) id : vec3<u32>
+    ) {
+      let i = id.x;
+      if (i < ${output.length}) {
+        out[i] = a[i] + b[i];
+      }
+    }
+  `;
+
+  const module = device.createShaderModule({ code: shader });
+
+  const pipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module, entryPoint: 'main' },
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      { binding: 0, resource: { buffer: bufferA } },
+      { binding: 1, resource: { buffer: bufferB } },
+      { binding: 2, resource: { buffer: bufferOut } },
+    ],
+  });
+
+  const commandEncoder = device.createCommandEncoder();
+  const passEncoder = commandEncoder.beginComputePass();
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setBindGroup(0, bindGroup);
+  passEncoder.dispatchWorkgroups(output.length);
+  passEncoder.end();
+
+  // Копируем результат обратно
+  commandEncoder.copyBufferToBuffer(
+    bufferOut,
+    0,
+    device.queue.getQueue().createBuffer({
+      size: output.byteLength,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    }),
+    0,
+    output.byteLength,
+  );
+
+  device.queue.submit([commandEncoder.finish()]);
+
+  // Чтение результата
+  const resultBuffer = await device.queue.onSubmittedWorkDone();
+  const resultGpuBuffer = device.queue.getQueue().getBuffer(resultBuffer);
+  await resultGpuBuffer.mapAsync(GPUMapMode.READ);
+  const resultArray = new Float32Array(resultGpuBuffer.getMappedRange());
+  console.log('Результат на GPU:', Array.from(resultArray)); // [11, 22, 33, 44, 55]
+}
 
 export const MainPage = () => {
-  const [layoutVariant, setLayoutVariant] = useState<'flex' | 'overlay'>('overlay');
+  useEffect(() => {
+    runOnGPU().catch(console.error);
+  }, []);
 
-  const [mainColor, setMainColor] = useState<string>('#1c3773');
-
-  const [shaderData, setShaderData] = useState(`precision mediump float;
-uniform vec3 mainColor;
-uniform vec2 iResolution;
-uniform float iTime;
-uniform vec2 iMouse;
-uniform bool hasActiveReminders;
-uniform bool hasUpcomingReminders;
-uniform bool disableCenterDimming;
-varying vec2 vTextureCoord;
-
-// Ether by nimitz 2014 (twitter: @stormoid)
-// https://www.shadertoy.com/view/MsjSW3
-// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
-
-#define t iTime
-mat2 m(float a){float c=cos(a), s=sin(a);return mat2(c,-s,s,c);}
-float map(vec3 p){
-    p.xz*= m(t*0.4);p.xy*= m(t*0.3);
-    vec3 q = p*2.+t;
-    return length(p+vec3(sin(t*0.7)))*log(length(p)+1.) + sin(q.x+sin(q.z+sin(q.y)))*0.5 - 1.;
-}
-
-void mainImage( out vec4 fragColor, in vec2 fragCoord ){
-\tvec2 p = fragCoord.xy/iResolution.y - vec2(.6,.5);
-    vec3 cl = vec3(0.);
-    float d = 2.5;
-    for(int i=0; i<=5; i++)\t{
-\t\tvec3 p = vec3(0,0,5.) + normalize(vec3(p, -1.))*d;
-        float rz = map(p);
-\t\tfloat f =  clamp((rz - map(p+.1))*0.5, -.1, 1. );
-        vec3 l = vec3(mainColor.x,mainColor.y,mainColor.z) + vec3(5., 2.5, 3.)*f;
-        cl = cl*l + smoothstep(2.5, .0, rz)*.7*l;
-\t\td += min(rz, 1.);
-\t}
-    fragColor = vec4(cl, 1.);
-}
-
-void main() {
-    vec2 fragCoord = vTextureCoord * iResolution;
-
-    vec4 color;
-    mainImage(color, fragCoord);
-    gl_FragColor = color;
-}`);
-
-  return (
-    <div className={'relative'}>
-      <Layout
-        variant={layoutVariant}
-        shader={
-          <ShaderCanvas
-            shaderData={shaderData}
-            inputProps={{
-              mainColor: mainColor,
-            }}
-            size={1000}
-            hasActiveReminders={false}
-            hasUpcomingReminders={false}
-            className={''}
-            isRunning={true}
-          />
-        }
-        sidebar={
-          <Sidebar
-            shaderData={shaderData}
-            setShaderData={setShaderData}
-            mainColor={mainColor}
-            setMainColor={setMainColor}
-          />
-        }
-      />
-
-      <div className={'fixed bottom-[5vh] left-1/2 -translate-x-1/2'}>
-        <Menu>
-          <MenuButton>
-            <SkipBackIcon size={15} />
-          </MenuButton>
-          <MenuButton>
-            <PlayIcon size={15} />
-            <span>Play</span>
-          </MenuButton>
-          <span>time</span>
-          <MenuButton>
-            <DownloadIcon size={15} />
-          </MenuButton>
-          <Separator />
-          <MenuButton
-            onClick={() => {
-              if (layoutVariant === 'flex') {
-                setLayoutVariant('overlay');
-              } else {
-                setLayoutVariant('flex');
-              }
-            }}
-          >
-            {layoutVariant === 'flex' ? (
-              <PanelRightIcon size={15} />
-            ) : (
-              <PanelRightCloseIcon size={15} />
-            )}
-          </MenuButton>
-          <MenuButton>
-            <MaximizeIcon size={15} />
-          </MenuButton>
-        </Menu>
-      </div>
-    </div>
-  );
+  return <div className={'relative'}>...</div>;
 };
