@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Анализатор спектра звука</title>
+  <style>
+      body { font-family: sans-serif; text-align: center; margin: 20px; }
+      canvas { border: 1px solid #ccc; margin-top: 20px; }
+      button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+  </style>
+</head>
+<body>
+<h1>Реальный анализ спектра звука</h1>
+<p>Нажмите "Разрешить" для доступа к микрофону</p>
+<button id="start">Запустить анализ</button>
+<button id="stop">Остановить</button>
+<canvas id="spectrum" width="800" height="300"></canvas>
+
+<!-- Подключаем библиотеку через CDN -->
+<!--<script src="https://cdn.jsdelivr.net/npm/fft-js@1.1.0/dist/fft.min.js"></script>-->
+<!--<script src="https://cdn.jsdelivr.net/npm/fftjs@0.0.11/dist/fft.min.js"></script>-->
+<!--<script src="fft.js"></script>-->
+<script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "importOrder": [
+    "^react",
+    "^next",
+    "<BUILTIN_MODULES>",
+    "<THIRD_PARTY_MODULES>",
+    "",
+    "^@/(.*)$",
+    "",
+    "^..?/(ui|model|lib|api)(.*)$",
+    "",
+    "^./(assets)(.*)$",
+    "",
+    "^[./]",
+    "",
+    "<TYPES>",
+    "<TYPES>^[./]"
+  ],
+  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "tabWidth": 2,
+  "semi": true,
+  "singleQuote": true,
+  "useTabs": false,
+  "printWidth": 90
+}

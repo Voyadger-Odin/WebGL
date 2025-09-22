@@ -1,0 +1,180 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:storybook/recommended"
+  ],
+  "plugins": ["boundaries"],
+  "ignorePatterns": ["generated.ts"],
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true
+      }
+    },
+    "boundaries/include": ["src/**/*"],
+    "boundaries/elements": [
+      {
+        "type": "app",
+        "pattern": "app"
+      },
+      {
+        "type": "pages",
+        "pattern": "views/*",
+        "capture": ["page"]
+      },
+      {
+        "type": "widgets",
+        "pattern": "widgets/*",
+        "capture": ["widget"]
+      },
+      {
+        "type": "features",
+        "pattern": "features/*",
+        "capture": ["feature"]
+      },
+      {
+        "type": "entities",
+        "pattern": "entities/*",
+        "capture": ["entity"]
+      },
+      {
+        "type": "shared",
+        "pattern": "shared/*",
+        "capture": ["segment"]
+      }
+    ]
+  },
+  "rules": {
+    // FSD rules
+    "boundaries/entry-point": [
+      2,
+      {
+        "default": "disallow",
+        "rules": [
+          {
+            "target": [["shared", { "segment": "lib" }]],
+            "allow": "*/index.ts"
+          },
+          {
+            "target": [["shared", { "segment": "lib" }]],
+            "allow": "*.(ts|tsx)"
+          },
+          {
+            "target": [["shared", { "segment": "constants" }]],
+            "allow": "index.ts"
+          },
+          {
+            "target": [["shared", { "segment": "api" }]],
+            "allow": "index.ts"
+          },
+          {
+            "target": [["shared", { "segment": "model" }]],
+            "allow": ["index.ts", "types.ts"]
+          },
+          {
+            "target": [["shared", { "segment": "types" }]],
+            "allow": ["index.ts"]
+          },
+          {
+            "target": [["shared", { "segment": "ui" }]],
+            // "allow": ["index.(ts|tsx)", "icons/index.(ts|tsx)"]
+            "allow": "**"
+          },
+          {
+            "target": [
+              [
+                "shared",
+                {
+                  "segment": "(data)" // ("ui"|"constants")
+                }
+              ]
+            ],
+            "allow": "**"
+          },
+          {
+            "target": ["app", "pages", "widgets", "features", "entities"],
+            "allow": "index.(ts|tsx)"
+          },
+          {
+            "target": ["app", "pages", "widgets", "features", "entities"],
+            "allow": "pub/*.(ts|tsx)"
+          }
+        ]
+      }
+    ],
+    "boundaries/element-types": [
+      2,
+      {
+        "default": "allow",
+        "message": "${file.type} is not allowed to import (${dependency.type})",
+        "rules": [
+          {
+            "from": ["shared"],
+            "disallow": ["app", "pages", "widgets", "features", "entities"],
+            "message": "Shared module must not import upper layers (${dependency.type})"
+          },
+          {
+            "from": ["entities"],
+            "message": "Entity must not import upper layers (${dependency.type})",
+            "disallow": ["app", "pages", "widgets", "features"]
+          },
+          {
+            "from": ["entities"],
+            "message": "Entity must not import other entity",
+            "disallow": [["entities", { "entity": "!${entity}" }]]
+          },
+          {
+            "from": ["features"],
+            "message": "Feature must not import upper layers (${dependency.type})",
+            "disallow": ["app", "pages", "widgets"]
+          },
+          // !IMPORTANT: разрешаем кросс-импорт фичей
+          // Отключить, если запрещаем
+          //
+          // {
+          //   "from": ["features"],
+          //   "message": "Feature must not import other feature",
+          //   "disallow": [["features", { "feature": "!${feature}" }]]
+          // },
+          {
+            "from": ["widgets"],
+            "message": "Widget must not import upper layers (${dependency.type})",
+            "disallow": ["app", "pages"]
+          },
+          // !IMPORTANT: разрешаем кросс-импорт виджетов
+          // Отключить, если запрещаем
+          //
+          // {
+          //   "from": ["widgets"],
+          //   "message": "Widget must not import other widget",
+          //   "disallow": [["widgets", { "widget": "!${widget}" }]]
+          // },
+          {
+            "from": ["pages"],
+            "message": "Page must not import upper layers (${dependency.type})",
+            "disallow": ["app"]
+          },
+          {
+            "from": ["pages"],
+            "message": "Page must not import other page",
+            "disallow": [["pages", { "page": "!${page}" }]]
+          }
+        ]
+      }
+    ],
+    // END OF FSD rules
+    //
+    "react/display-name": "off",
+    "@typescript-eslint/no-redeclare": "off",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
+  }
+}

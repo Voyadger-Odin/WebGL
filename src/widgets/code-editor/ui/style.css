@@ -1,0 +1,13 @@
+.cm-content,
+.cm-gutters,
+.cm-scroller,
+.cm-editor {
+    background: rgba(0, 0, 0, 0) !important;
+    color: #ffffff !important;
+    font-size: 10pt !important;
+    font-family: 'JetBrainsMono', monospace !important;
+}
+
+.cm-gutters {
+    background: rgba(0, 0, 0, 255) !important;
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GPU.js Пример</title>
+  <style>
+      body {
+          font-family: 'Segoe UI', sans-serif;
+          padding: 20px;
+          background: #111;
+          color: #f4f4f4;
+      }
+      pre {
+          background: #222;
+          border: 1px solid #ddd;
+          padding: 15px;
+          border-radius: 6px;
+          overflow-x: auto;
+          max-height: 400px;
+          overflow-y: auto;
+      }
+      button {
+          padding: 10px 20px;
+          font-size: 16px;
+          background: #007bff;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+      }
+      button:hover {
+          background: #0056b3;
+      }
+
+      .results {
+          display: flex;
+          flex-direction: row;
+          gap: 16px;
+      }
+
+      .result-block {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+      }
+  </style>
+</head>
+<body>
+
+<h1>GPU.js — Параллельная обработка массива</h1>
+<p>Умножаем каждый элемент массива на 2 с помощью GPU.</p>
+
+<button id="run">Запустить вычисление на GPU</button>
+
+<div>
+  <h3>Исходный массив:</h3>
+  <pre id="input"></pre>
+
+  <div class="results">
+    <div class="result-block">
+      <h3>Результат (CPU):</h3>
+      <pre id="outputCPU"></pre>
+    </div>
+
+    <div class="result-block">
+      <h3>Результат (GPU):</h3>
+      <pre id="outputGPU"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Подключаем gpu.js -->
+<script src="https://unpkg.com/gpu.js@latest/dist/gpu-browser.min.js"></script>
+
+<script>
+  // Тестовые данные
+  const N = 1000000
+  const K = 100
+  const inputData = Array.from({length: N}, (el, index) => index);
+  const scalar = 3;
+
+  // Инициализируем GPU
+  const gpu = new GPU();
+
+  // Создаём функцию, которая будет выполнена на GPU
+  const multiplyMatrixByScalarGPU = gpu.createKernel(function(array, scalar) {
+    // return array[this.thread.x] * scalar;
+    return Math.sin(array[this.thread.x]);
+  }).setOutput([N]);
+
+  const multiplyMatrixByScalarCPU = (array, scalar) => {
+    return array.map(item => Math.sin(item))
+  }
+
+  // Отображаем вход
+  document.getElementById('input').textContent = `${JSON.stringify(inputData.slice(0, 10), null, 2)}\n\n...`;
+
+  // Обработчик кнопки
+  document.getElementById('run').addEventListener('click', () => {
+    // ---------------------------------------------- CPU ----------------------------------------------
+    const runOnCPU = () => {
+      const startTime = performance.now();
+
+      // Запуск на GPU
+      let resultCPU = multiplyMatrixByScalarCPU(inputData, scalar);
+      for (let i = 0; i < K; i++) {
+        resultCPU = multiplyMatrixByScalarCPU(inputData, scalar);
+      }
+
+      const endTime = performance.now();
+
+      // Вывод результата
+      // document.getElementById('outputCPU').textContent =
+      //   `(Выполнено за ${(endTime - startTime).toFixed(2)} мс)\n\n${JSON.stringify(resultCPU, null, 2)}`;
+      document.getElementById('outputCPU').textContent =
+        `(Выполнено за ${(endTime - startTime).toFixed(2)} мс)`;
+      console.log('resultCPU: ', JSON.stringify(resultCPU, null, 2));
+    }
+
+    // ---------------------------------------------- GPU ----------------------------------------------
+    const runOnGPU = () => {
+      const startTime = performance.now();
+
+      // Запуск на GPU
+      let resultGPU = multiplyMatrixByScalarGPU(inputData, scalar);
+      for (let i = 0; i < K; i++) {
+        resultGPU = multiplyMatrixByScalarGPU(inputData, scalar);
+      }
+
+      const endTime = performance.now();
+
+      // Вывод результата
+      // document.getElementById('outputGPU').textContent =
+      //   `(Выполнено за ${(endTime - startTime).toFixed(2)} мс)\n\n${JSON.stringify(resultGPU, null, 2)}`;
+      document.getElementById('outputGPU').textContent =
+        `(Выполнено за ${(endTime - startTime).toFixed(2)} мс)`;
+      console.log('resultGPU: ', JSON.stringify(resultGPU, null, 2));
+    }
+
+    runOnCPU();
+    runOnGPU();
+  });
+</script>
+
+</body>
+</html>

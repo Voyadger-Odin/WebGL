@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Анимация появления</title>
+  <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+
+      body {
+          font-family: 'Segoe UI', sans-serif;
+          background: #10151b;
+          color: white;
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          overflow: hidden;
+          /* Начальное размытие */
+          backdrop-filter: blur(0px);
+          transition: backdrop-filter 1.2s ease;
+      }
+
+      /* Overlay с градиентом */
+      .masked-element {
+          position: fixed;
+          z-index: 10;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #ff0707;
+          -webkit-mask-image: radial-gradient(circle, black 50%, transparent 80%);
+          mask-image: radial-gradient(circle, black 50%, transparent 80%);
+          animation: revealMask 2s ease-in-out forwards;
+      }
+
+      @keyframes revealMask {
+          from {
+              -webkit-mask-image: radial-gradient(circle, black 0%, transparent 0%);
+              mask-image: radial-gradient(circle, black 0%, transparent 0%);
+          }
+          to {
+              -webkit-mask-image: radial-gradient(circle, black 70%, transparent 90%);
+              mask-image: radial-gradient(circle, black 70%, transparent 90%);
+          }
+      }
+  </style>
+</head>
+<body>
+
+<!-- Анимационный слой -->
+<div class="page-transition"></div>
+
+<!-- Основной контент -->
+<main class="content">
+  <div class="masked-element"></div>
+
+  <h1>Добро пожаловать</h1>
+  <p>
+    Это красиво анимированная страница с размытием фона и эффектом "раскрытия".
+    Анимация исчезает через 1.5 секунды, открывая чистый интерфейс.
+  </p>
+</main>
+
+</body>
+</html>
