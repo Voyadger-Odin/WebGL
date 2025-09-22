@@ -46,11 +46,11 @@ async function runOnGPU() {
     }
   `;
 
-  const module = device.createShaderModule({ code: shader });
+  const _module = device.createShaderModule({ code: shader });
 
   const pipeline = device.createComputePipeline({
     layout: 'auto',
-    compute: { module, entryPoint: 'main' },
+    compute: { _module, entryPoint: 'main' },
   });
 
   const bindGroup = device.createBindGroup({
